@@ -119,18 +119,20 @@ oops:
 	return 0;
 }
 
-static void *scan_dtb_path(char **dtb_files, const char *dtb_path)
+static void scan_dtb_path(char ***dtb_files_ptr, int *dtb_count_ptr, const char *dtb_path)
 {
 	struct dirent **de;
-	int i, f, files, namlen;
+	int f, files, namlen;
 	const int dlen = strlen(dtb_path);
+	char **dtb_files = *dtb_files_ptr;
+	int dtb_count = *dtb_count_ptr;
 
 	files = scandir(dtb_path, &de, NULL, alphasort);
 	if (files < 0)
 		error("failed to open '%s': %s", dtb_path, strerror(errno));
 
 	printf("Scanning directory %s...\n", dtb_path);
-	for (f = 0, i = 0; f < files; f++) {
+	for (f = 0; f < files; f++) {
 		printf("%s", de[f]->d_name);
 
 		namlen = strlen(de[f]->d_name);
@@ -139,29 +141,55 @@ static void *scan_dtb_path(char **dtb_files, const char *dtb_path)
 			goto next_f;
 		}
 
-		/* skip over already allocated file names */
-		for (; dtb_files[i]; i++)
-			if (i >= DTB_MAX)
-				fail("reached dtb file limit (%d)", DTB_MAX);
+		char **new_files = realloc(dtb_files, sizeof(char*) * (dtb_count + 2));
+		if (!new_files)
+			fail("failed to allocate memory");
+		dtb_files = new_files;
 
 		namlen += dlen + 2; /* / and NULL terminator */
-		dtb_files[i] = calloc(namlen, sizeof(char));
-		if (!dtb_files[i])
+		dtb_files[dtb_count] = calloc(namlen, sizeof(char));
+		if (!dtb_files[dtb_count])
 			fail("failed to allocate memory");
 
-		snprintf(dtb_files[i], namlen, "%s/%s", dtb_path, de[f]->d_name);
+		snprintf(dtb_files[dtb_count], namlen, "%s/%s", dtb_path, de[f]->d_name);
+		dtb_count++;
+		dtb_files[dtb_count] = NULL;
+
 next_f:
 		free(de[f]);
 		printf("%s\n", "");
 	}
 	free(de);
 
-	return 0;
+	*dtb_files_ptr = dtb_files;
+	*dtb_count_ptr = dtb_count;
+}
+
+void add_dtb_file(char ***dtb_files_ptr, int *dtb_count_ptr, const char *filename) {
+	char **dtb_files = *dtb_files_ptr;
+	int dtb_count = *dtb_count_ptr;
+
+	if (dtb_count >= DTB_MAX) {
+		fail("reached dtb file limit (%d)", DTB_MAX);
+	}
+	char **new_files = realloc(dtb_files, sizeof(char*) * (dtb_count + 2));
+	if (!new_files)
+		fail("failed to allocate memory");
+	dtb_files = new_files;
+
+	dtb_files[dtb_count] = strdup(filename);
+	if (!dtb_files[dtb_count])
+		fail("failed to allocate memory");
+	dtb_count++;
+	dtb_files[dtb_count] = NULL;
+
+	*dtb_files_ptr = dtb_files;
+	*dtb_count_ptr = dtb_count;
 }
 
 static void *load_dtbh_block(char **dtb_files, unsigned pagesize,
-			     uint32_t platform_code, uint32_t subtype_code,
-			     unsigned *_sz)
+				 uint32_t platform_code, uint32_t subtype_code,
+				 unsigned *_sz)
 {
 	const unsigned pagemask = pagesize - 1;
 	struct dt_entry *new_entries;
@@ -347,18 +375,12 @@ int main(int argc, char **argv)
 	char *arg, *val;
 	char *dt_img = 0;
 	void *dt_data = 0;
-	char **dtb_files = 0;
+	char **dtb_files = NULL;
 	int fd, dt_count = 0;
 	unsigned pagesize = DTBH_PAGE_SIZE_DEF;
 	uint32_t dt_platform_code = DTBH_PLATFORM_CODE_DEF;
 	uint32_t dt_subtype_code = DTBH_SUBTYPE_CODE_DEF;
 	unsigned dt_size;
-
-	dtb_files = malloc(sizeof(char*) * DTB_MAX);
-	if (!dtb_files)
-		error("failed to allocate memory");
-	else
-		memset(dtb_files, 0, sizeof(char*) * DTB_MAX);
 
 	while (argc > 0) {
 		argc--;
@@ -375,7 +397,7 @@ int main(int argc, char **argv)
 				fail("unsupported page size %d\n", pagesize);
 		} else if (!strcmp(arg, "--dtb") || !strcmp(arg, "-d")) {
 			read_val;
-			scan_dtb_path(dtb_files, val);
+			scan_dtb_path(&dtb_files, &dt_count, val);
 		} else if (!strcmp(arg, "--output") || !strcmp(arg, "-o")) {
 			read_val;
 			dt_img = val;
@@ -385,17 +407,8 @@ int main(int argc, char **argv)
 		} else if (!strcmp(arg, "--subtype")) {
 			read_val;
 			dt_subtype_code = strtoul(val, 0, 16);
-		} else if (*arg != '-') {
-			/* skip over already allocated file names */
-			for (; dtb_files[dt_count]; dt_count++) {
-				if (dt_count >= DTB_MAX) {
-					fail("reached dtb file limit (%d)", DTB_MAX);
-				}
-			}
-			dtb_files[dt_count] = strdup(arg);
-			if (!dtb_files[dt_count]) {
-				fail("failed to allocate memory");
-			}
+		} else if (arg[0] != '-') {
+			add_dtb_file(&dtb_files, &dt_count, arg);
 		} else
 			usage();
 	}
@@ -405,7 +418,7 @@ int main(int argc, char **argv)
 		usage();
 	}
 
-	if (!dtb_files[0])
+	if (dt_count == 0)
 		fail("no dtb files found");
 
 	dt_data = load_dtbh_block(dtb_files, pagesize, dt_platform_code, dt_subtype_code, &dt_size);

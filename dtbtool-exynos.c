@@ -357,6 +357,8 @@ int main(int argc, char **argv)
 	dtb_files = malloc(sizeof(char*) * DTB_MAX);
 	if (!dtb_files)
 		error("failed to allocate memory");
+	else
+		memset(dtb_files, 0, sizeof(char*) * DTB_MAX);
 
 	while (argc > 0) {
 		argc--;

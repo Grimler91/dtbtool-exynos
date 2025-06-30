@@ -154,6 +154,7 @@ next_f:
 		free(de[f]);
 		printf("%s\n", "");
 	}
+	free(de);
 
 	return 0;
 }

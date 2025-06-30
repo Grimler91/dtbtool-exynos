@@ -429,14 +429,14 @@ int main(int argc, char **argv)
 	if (fd < 0)
 		fail("could not create output file '%s': %s", dt_img, strerror(errno));
 
-	if (write(fd, dt_data, dt_size) != dt_size) goto fail;
+	if (write(fd, dt_data, dt_size) != dt_size) {
+		unlink(dt_img);
+		close(fd);
+		fail("failed writing '%s': %s", dt_img, strerror(errno));
+	}
 
 	close(fd);
 
 	return 0;
 
-fail:
-	unlink(dt_img);
-	close(fd);
-	fail("failed writing '%s': %s", dt_img, strerror(errno));
 }

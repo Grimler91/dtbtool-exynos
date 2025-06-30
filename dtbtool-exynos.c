@@ -355,6 +355,14 @@ static void *load_dtbh_block(char **dtb_files, unsigned pagesize,
 	return dtbh;
 }
 
+void free_dtb_files(char **dtb_files) {
+	if (!dtb_files) return;
+	for (int i = 0; dtb_files[i]; i++) {
+		free(dtb_files[i]);
+	}
+	free(dtb_files);
+}
+
 static int usage(void)
 {
 	fprintf(stderr, "usage: dtbtool\n"
@@ -415,28 +423,36 @@ int main(int argc, char **argv)
 
 	if (!dt_img) {
 		error("no output filename specified");
+		free_dtb_files(dtb_files);
 		usage();
 	}
 
-	if (dt_count == 0)
+	if (dt_count == 0) {
+		free_dtb_files(dtb_files);
 		fail("no dtb files found");
+	}
 
 	dt_data = load_dtbh_block(dtb_files, pagesize, dt_platform_code, dt_subtype_code, &dt_size);
-	if (!dt_data)
+	if (!dt_data) {
+		free_dtb_files(dtb_files);
 		fail("could not load device tree blobs");
+	}
 
 	fd = open(dt_img, O_CREAT | O_TRUNC | O_WRONLY, 0644);
-	if (fd < 0)
+	if (fd < 0) {
+		free_dtb_files(dtb_files);
 		fail("could not create output file '%s': %s", dt_img, strerror(errno));
+	}
 
 	if (write(fd, dt_data, dt_size) != dt_size) {
 		unlink(dt_img);
 		close(fd);
+		free_dtb_files(dtb_files);
 		fail("failed writing '%s': %s", dt_img, strerror(errno));
 	}
 
+	free_dtb_files(dtb_files);
 	close(fd);
 
 	return 0;
-
 }

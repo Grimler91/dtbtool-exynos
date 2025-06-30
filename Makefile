@@ -1,11 +1,11 @@
-OBJ_FILES := dtbtool-exynos.o /usr/lib/libfdt.so
+OBJ_FILES := dtbtool-exynos.o
 CFLAGS := -O2 -fomit-frame-pointer -Wall
 
 all: dtbTool-exynos
 
 dtbTool-exynos: $(OBJ_FILES)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ -lfdt
 	strip $@
 
 clean:
-	rm -f $(OBJ_FILES)
+	rm -f dtbTool-exynos $(OBJ_FILES)

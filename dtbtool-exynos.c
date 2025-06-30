@@ -129,16 +129,16 @@ static void *scan_dtb_path(char **dtb_files, const char *dtb_path)
 	if (files < 0)
 		error("failed to open '%s': %s", dtb_path, strerror(errno));
 
-    
-    printf("%s","List of files:\n############################################");
+
+	printf("%s","List of files:\n############################################");
 	for (f = 0, i = 0; f < files; f++) {
-        printf("%s",de[f]->d_name);
-        
+		printf("%s",de[f]->d_name);
+
 		namlen = strlen(de[f]->d_name);
 		if (namlen < 4 || strcmp(&de[f]->d_name[namlen - 4], ".dtb")) {
-            printf("%s"," : skipped");
+			printf("%s"," : skipped");
 			goto next_f;
-        }
+		}
 
 		/* skip over already allocated file names */
 		for (; dtb_files[i]; i++)
@@ -153,7 +153,7 @@ static void *scan_dtb_path(char **dtb_files, const char *dtb_path)
 		snprintf(dtb_files[i], namlen, "%s/%s", dtb_path, de[f]->d_name);
 next_f:
 		free(de[f]);
-        printf("%s\n","");
+		printf("%s\n","");
 	}
 	printf("%s\n","End list of files\n#######################################");
 
@@ -385,16 +385,16 @@ int main(int argc, char **argv)
 			read_val;
 			dt_subtype_code = strtoul(val, 0, 16);
 		} else if (*arg != '-') {
-		    /* skip over already allocated file names */
-            for (; dtb_files[dt_count]; dt_count++) {
-            	if (dt_count >= DTB_MAX) {
-            		fail("reached dtb file limit (%d)", DTB_MAX);
-            	}
-            }
-            dtb_files[dt_count] = strdup(arg);
-            if (!dtb_files[dt_count]) {
-            	fail("failed to allocate memory");
-            }
+			/* skip over already allocated file names */
+			for (; dtb_files[dt_count]; dt_count++) {
+				if (dt_count >= DTB_MAX) {
+					fail("reached dtb file limit (%d)", DTB_MAX);
+				}
+			}
+			dtb_files[dt_count] = strdup(arg);
+			if (!dtb_files[dt_count]) {
+				fail("failed to allocate memory");
+			}
 		} else
 			usage();
 	}

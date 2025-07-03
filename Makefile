@@ -5,7 +5,6 @@ all: dtbTool-exynos
 
 dtbTool-exynos: $(OBJ_FILES)
 	$(CC) $(CFLAGS) -o $@ $^ -lfdt
-	strip $@
 
 clean:
 	rm -f dtbTool-exynos $(OBJ_FILES)
